@@ -1,0 +1,146 @@
+;===============================================================================
+; Copyright 2020 Ryan Clarke
+;
+; Licensed under the Apache License, Version 2.0 (the "License"); you may not
+; use this file except in compliance with the License. You may obtain a copy of
+; the License at
+; 
+;     http://www.apache.org/licenses/LICENSE-2.0
+;
+; Unless required by applicable law or agreed to in writing, software
+; distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+; WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+; License for the specific language governing permissions and limitations under
+; the License.
+;===============================================================================
+
+;===============================================================================
+; Program   : Boot Loader
+; File Name : bootload.a65
+; Project   : Kit-3 8-bit Computer
+; Author    : Ryan Clarke
+; E-mail    : kj6msg@icloud.com
+;-------------------------------------------------------------------------------
+; Purpose   : Boot loader for the Kit-3.
+;===============================================================================
+
+
+.PC02
+
+.MACPACK    generic
+
+.INCLUDE    "bootload.inc"
+
+; .IMPORT     kitmon
+
+.EXPORT     rst
+
+
+;===============================================================================
+; MACROS
+;===============================================================================
+
+;= CONSTANTS ===================================================================
+
+            FREQ = 1                    ; CPU clock in MHz
+
+            MAJOR = 0
+            MINOR = 1
+            PATCH = 0
+
+            .DEFINE VERSION .SPRINTF("%d.%d.%d", MAJOR, MINOR, PATCH)
+            
+        .IFDEF SIM                      ; simulator specific definitions
+            PY65_PUTC = $204            ; repurpose unused UART registers as
+            PY65_GETC = $205            ; input/output for py65mon
+        .ENDIF
+
+
+;===============================================================================
+; KITBIOS
+;===============================================================================
+
+.CODE
+            
+bootload:   lda     #$07                ; display on, cursor on, blink on
+            sta     CTRL                ; write display control register
+            lda     #$1E                ; yellow text on blue
+            sta     COLOR               ; write color register
+
+            stz     ADDRL               ; cursor at (0,0)
+            stz     ADDRH
+            
+            lda     #'H'
+            sta     VRAM               ; print character
+            inc     ADDRL               ; increment cursor X
+
+            lda     #'e'
+            sta     VRAM               ; print character
+            inc     ADDRL
+
+            lda     #'l'
+            sta     VRAM
+            inc     ADDRL
+
+            lda     #'l'
+            sta     VRAM
+            inc     ADDRL
+
+            lda     #'o'
+            sta     VRAM
+
+            lda     #$0F                ; display on, cursor on, col/row mode
+            sta     CTRL
+
+            lda     #5
+            sta     CURSL
+            lda     #0
+            sta     CURSH
+
+            ; jmp     kitmon
+            jmp     *
+
+
+;===============================================================================
+; INTERRUPT ROUTINES
+;===============================================================================
+
+;= NON-MASKABLE INTERRUPT HANDLER ==============================================
+
+.CODE
+
+nmi:        rti
+
+
+;= RESET HANDLER ===============================================================
+
+.CODE
+
+rst:        sei                         ; disable interrupts
+            cld                         ; disable BCD mode
+            ldx     #$FF
+            txs                         ; reset stack pointer to $01FF
+            jmp     bootload
+
+
+;= IRQ/BRK HANDLER =============================================================
+
+.CODE
+
+irqbrk:     rti
+
+
+;===============================================================================
+; INTERRUPT VECTOR TABLE
+;===============================================================================
+
+.SEGMENT "VECTORS"
+
+            .WORD nmi                   ; $FFFA
+            .WORD rst                   ; $FFFC
+            .WORD irqbrk                ; $FFFE
+
+
+;===============================================================================
+
+.END
